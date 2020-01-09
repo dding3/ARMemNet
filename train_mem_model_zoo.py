@@ -1,7 +1,7 @@
 from zoo import init_nncontext
 from zoo.tfpark import TFOptimizer, TFDataset
 from bigdl.optim.optimizer import *
-from data_utils import load_agg_selected_data_mem_train
+from data_utils import load_agg_selected_data_mem_train, get_datasets_from_dir
 from AR_mem.config import Config
 from AR_mem.model import Model
 from time import time
@@ -37,17 +37,24 @@ if __name__ == "__main__":
     set_core_number(core_num)
 
     # create train data
-    train_x, dev_x, test_x, train_y, dev_y, test_y, train_m, dev_m, test_m, test_dt = \
-        load_agg_selected_data_mem_train(data_path=config.data_path,
-                                   x_len=config.x_len,
-                                   y_len=config.y_len,
-                                   foresight=config.foresight,
-                                   cell_ids=config.train_cell_ids,
-                                   dev_ratio=config.dev_ratio,
-                                   test_len=config.test_len,
-                                   seed=config.seed)
+    # train_x, dev_x, test_x, train_y, dev_y, test_y, train_m, dev_m, test_m, test_dt = \
+    #     load_agg_selected_data_mem_train(data_path=config.data_path,
+    #                                x_len=config.x_len,
+    #                                y_len=config.y_len,
+    #                                foresight=config.foresight,
+    #                                cell_ids=config.train_cell_ids,
+    #                                dev_ratio=config.dev_ratio,
+    #                                test_len=config.test_len,
+    #                                seed=config.seed)
 
-    dataset = TFDataset.from_ndarrays([train_x, train_m, train_y], batch_size=batch_size, val_tensors=[dev_x, dev_m, dev_y],)
+    train_X, train_Y, train_M, valid_X, valid_Y, valid_M, _, _, _ =\
+        get_datasets_from_dir(config.data_path, config.batch_size,
+                          train_cells=config.num_cells_train,
+                          valid_cells=config.num_cells_valid,
+                          test_cells=config.num_cells_test)[0]
+
+    dataset = TFDataset.from_ndarrays([train_X, train_M, train_Y], batch_size=batch_size,
+                                      val_tensors=[valid_X, valid_M, valid_Y],)
 
     model = Model(config, dataset.tensors[0], dataset.tensors[1], dataset.tensors[2])
     optimizer = TFOptimizer.from_loss(model.loss, Adam(config.lr),
