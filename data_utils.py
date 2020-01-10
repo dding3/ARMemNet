@@ -536,9 +536,11 @@ def get_datasets_from_dir(preprocessed_dir, batch_size, train_cells=1.0, valid_c
     logger.info('')
 
     # iter trainset
-    for i in tqdm(range(0, n_total_rows, batch_size)):
+    # for i in tqdm(range(0, n_total_rows, batch_size)):
+    for i in tqdm(range(0, n_total_rows, n_total_rows)):
         row_idx_s = i  # start row's index for batch
-        row_idx_e = i + batch_size  # end row's index for batch
+        # row_idx_e = i + batch_size  # end row's index for batch
+        row_idx_e = i + n_total_rows
 
         # for last iter
         if row_idx_e >= n_total_rows:
