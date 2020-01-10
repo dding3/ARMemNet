@@ -47,6 +47,7 @@ if __name__ == "__main__":
     #                                test_len=config.test_len,
     #                                seed=config.seed)
 
+    # config.batch_size is useless as we force get_datasets_from_dir return the entire data
     train_X, train_Y, train_M, valid_X, valid_Y, valid_M, _, _, _ =\
         get_datasets_from_dir(config.data_path, config.batch_size,
                           train_cells=config.num_cells_train,
