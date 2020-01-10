@@ -582,5 +582,21 @@ def get_datasets_from_dir(preprocessed_dir, batch_size, train_cells=1.0, valid_c
         # return current batch
         yield train_X, train_Y, train_M, valid_X, valid_Y, valid_M, test_X, test_Y, test_M
 
+# get dataset from given filenames
+def read_npz_files(preprocessed_dir, files_to_read):
+    X, Y, M = None, None, None
+
+    for filename in files_to_read:
+        read_npz = np.load(os.path.join(preprocessed_dir, filename))
+
+        if X is None:
+            X, Y, M = read_npz['X'], read_npz['Y'], read_npz['M']
+        else:
+            X = np.vstack((X, read_npz['X']))
+            Y = np.vstack((Y, read_npz['Y']))
+            M = np.vstack((M, read_npz['M']))
+
+    return X.reshape(-1, 10, 8), Y.reshape(-1, 8), M.reshape(-1, 77, 8)
+
 if __name__ == "__main__":
     full_x = load_agg_data_all()
