@@ -43,6 +43,19 @@ class Config(object):
         self.allow_gpu = True
         self.desc = self._desc()
 
+        self.scaler_dump = '/home/ding/data/skt/scaler.pkl'
+        self.feat_cols = ['RSRP', 'RSRQ', 'DL_PRB_USAGE_RATE', 'SINR',
+                          'UE_TX_POWER', 'PHR', 'UE_CONN_TOT_CNT', 'CQI']
+        self.n_feat = len(self.feat_cols)  # features per item
+
+        # preprocess properties
+        self.x_size = 10        # # of items per X
+        self.m_size = 11        # # of items per M
+        self.y_size = 1         # # of items per Y
+        self.m_days = 7         # # of days per M
+        self.m_gaps = 12*24     # # of rows per day - using 60min / 5min/row x 24hours
+
+
     def _desc(self):
         desc = ""
         for mem, val in self.__dict__.items():

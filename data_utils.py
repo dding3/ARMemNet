@@ -1,4 +1,5 @@
 import random
+import gc
 import pandas as pd
 import numpy as np
 import logging
@@ -599,6 +600,51 @@ def read_npz_files(preprocessed_dir, files_to_read):
             M = np.vstack((M, read_npz['M']))
 
     return X.reshape(-1, 10, 8), Y.reshape(-1, 8), M.reshape(-1, 77, 8)
+
+
+# generate rolling window with 'width' from 'np_arr'
+def rolling_window(np_arr, width=11):
+    n = np_arr.shape[0]
+    return np.hstack([np_arr[i:1 + n + i - width] for i in range(0, width)])
+
+
+# wrap 'np_arr' in 'width' using a rolling_window func and then bind rows that are 'gapsize' apart by 'winsize'
+def slided_window(np_arr, width=11, winsize=7, gapsize=288):
+    total_rows = np_arr.shape[0]
+    result_rows = total_rows - (width - 1) - (winsize - 1) * gapsize  # assume that x_days = 1
+
+    rolled_np = rolling_window(np_arr, width)
+    slided_np = np.array([rolled_np[i:i + (winsize - 1) * gapsize + 1:gapsize] for i in range(0, result_rows)])
+
+    # free used var
+    del rolled_np
+    gc.collect()
+
+    return slided_np
+
+
+# generate x, y, m as ndarray with given params
+def generate_xym(np_arr, n_feat=8, x_size=10, y_size=1, m_size=11, m_days=7, m_gaps=288):
+    # generate X / Y
+    XY_raw = np_arr[m_days * m_gaps:]
+    XY = rolling_window(XY_raw, x_size + y_size)
+    X = XY[:, :-1 * n_feat]
+    Y = XY[:, -1 * n_feat:]
+
+    # generate M
+    M_raw = np_arr[:-m_gaps]
+    M = slided_window(M_raw, m_size, m_days, m_gaps)
+
+    # free used var
+    del np_arr
+    del XY_raw
+    del XY
+    del M_raw
+    gc.collect()
+
+    # return as numpy.ndarray
+    return X, Y, M
+
 
 if __name__ == "__main__":
     full_x = load_agg_data_all()
