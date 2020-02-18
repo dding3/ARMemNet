@@ -1,7 +1,7 @@
 from zoo import init_nncontext
 from zoo.tfpark import TFOptimizer, TFDataset
 from bigdl.optim.optimizer import *
-from data_utils import load_agg_selected_data_mem_train, get_datasets_from_dir, generate_xym
+from data_utils import generate_xym
 from AR_mem.config import Config
 from AR_mem.model import Model
 from time import time
@@ -33,6 +33,15 @@ if __name__ == "__main__":
     config = Config()
     config.data_path = "/home/ding/data/skt/npz"
     config.latest_model=False
+
+    feat_cols = config.feat_cols
+    n_feat = config.n_feat
+    x_size = config.x_size
+    y_size = config.y_size
+    m_size = config.m_size
+    m_days = config.m_days
+    m_gaps = config.m_gaps
+    scaler_dump = config.scaler_dump
 
     # init or get SparkContext
     sc = init_nncontext()
@@ -80,7 +89,7 @@ if __name__ == "__main__":
         fs = pa.hdfs.connect()
 
         # load scaler
-        with open(config.scaler_dump, 'rb') as scaler_dump:
+        with open(scaler_dump, 'rb') as scaler_dump:
             scaler = pickle.load(scaler_dump)
 
         # get CELL_NUM from filename
@@ -96,11 +105,11 @@ if __name__ == "__main__":
                                             'ue_conn_tot_cnt': 'UE_CONN_TOT_CNT', 'cqi': 'CQI'})
 
             # Normalzing
-            df[config.feat_cols] = scaler.transform(df[config.feat_cols])
+            df[feat_cols] = scaler.transform(df[feat_cols])
 
             # Generate X, Y, M
-            x, y, m = generate_xym(df[config.feat_cols].to_numpy(), config.n_feat, config.x_size,
-                                   config.y_size, config.m_size, config.m_days, config.m_gaps)
+            x, y, m = generate_xym(df[feat_cols].to_numpy(), n_feat, x_size,
+                                   y_size, m_size, m_days, m_gaps)
 
         return [x, y, m]
 
@@ -133,7 +142,7 @@ if __name__ == "__main__":
     dataset = TFDataset.from_rdd(train_rdd,
                                  features=[(tf.float32, [10, 8]), (tf.float32, [77, 8])],
                                  labels=(tf.float32, [8]),
-                                 batch_size=1,
+                                 batch_size=batch_size,
                                  val_rdd=val_rdd)
 
     # create train data
