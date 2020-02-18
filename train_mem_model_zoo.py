@@ -41,7 +41,7 @@ if __name__ == "__main__":
     m_size = config.m_size
     m_days = config.m_days
     m_gaps = config.m_gaps
-    scaler_dump = config.scaler_dump
+    scaler_dump_file = config.scaler_dump
 
     # init or get SparkContext
     sc = init_nncontext()
@@ -84,16 +84,15 @@ if __name__ == "__main__":
     # load from hdfs
     def parse_hdfs_csv(file):
         import pandas as pd
-        from pyarrow import csv
         import pyarrow as pa
         fs = pa.hdfs.connect()
 
         # load scaler
-        with open(scaler_dump, 'rb') as scaler_dump:
+        with open(scaler_dump_file, 'rb') as scaler_dump:
             scaler = pickle.load(scaler_dump)
 
         # get CELL_NUM from filename
-        cell_num = file.split('.')[0]
+        cell_num = file.split('/')[-1].split('.')[0]
 
         with fs.open(file, 'rb') as f:
             df = pd.read_csv(f, header = 0)

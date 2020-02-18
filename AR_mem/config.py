@@ -43,7 +43,7 @@ class Config(object):
         self.allow_gpu = True
         self.desc = self._desc()
 
-        self.scaler_dump = '/home/nvkvs/ding/scaler.pkl'
+        self.scaler_dump = 'scaler.pkl'
         self.feat_cols = ['RSRP', 'RSRQ', 'DL_PRB_USAGE_RATE', 'SINR',
                           'UE_TX_POWER', 'PHR', 'UE_CONN_TOT_CNT', 'CQI']
         self.n_feat = len(self.feat_cols)  # features per item
