@@ -73,11 +73,11 @@ if __name__ == "__main__":
 
 
     # load from hdfs
-    def parse_csv(file):
+    def parse_hdfs_csv(file):
         import pandas as pd
         from pyarrow import csv
         import pyarrow as pa
-        fs = pa.hddfs.connect()
+        fs = pa.hdfs.connect()
 
         # load scaler
         with open(config.scaler_dump, 'rb') as scaler_dump:
@@ -114,15 +114,27 @@ if __name__ == "__main__":
         return [([X[i], M[i]], Y[i]) for i in range(length)]
 
     from os import listdir
+    # data_paths = [data_path + f for f in listdir(data_path)]
+
+    hadoop = sc._jvm.org.apache.hadoop
+    fs = hadoop.fs.FileSystem
+    conf = hadoop.conf.Configuration()
+    path = hadoop.fs.Path('/')
+
+    for f in fs.get(conf).listStatus(path):
+        print f.getPath()
+
+    print("hello")
 
     data_paths = [data_path + f for f in listdir(data_path)]
-    t = sc.parallelize(data_paths, node_num).map(parse_local_csv)\
+    t = sc.parallelize(data_paths, node_num)\
+        .map(parse_hdfs_csv)\
         .flatMap(lambda data_seq: get_feature_label_list(data_seq))\
         .coalesce(node_num).cache()
 
-    # train_rdd, val_rdd, test_rdd = t.randomSplit([config.num_cells_train, config.num_cells_valid, config.num_cells_test])
-    train_rdd, val_rdd, test_rdd = t.randomSplit(
-        [2, 1, 1])
+    train_rdd, val_rdd, test_rdd = t.randomSplit([config.num_cells_train, config.num_cells_valid, config.num_cells_test])
+    # train_rdd, val_rdd, test_rdd = t.randomSplit(
+    #     [2, 1, 1])
     dataset = TFDataset.from_rdd(train_rdd,
                                  features=[(tf.float32, [10, 8]), (tf.float32, [77, 8])],
                                  labels=(tf.float32, [8]),
