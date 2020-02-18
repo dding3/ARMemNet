@@ -116,17 +116,12 @@ if __name__ == "__main__":
     from os import listdir
     # data_paths = [data_path + f for f in listdir(data_path)]
 
-    hadoop = sc._jvm.org.apache.hadoop
-    fs = hadoop.fs.FileSystem
-    conf = hadoop.conf.Configuration()
-    path = hadoop.fs.Path('/')
+    cmd = "hdfs dfs -ls " + data_path
+    import os
+    out = os.popen(cmd)
+    data_paths = [fileline.split(' ')[-1][:-1] for fileline in out.readlines()[1:]]
 
-    for f in fs.get(conf).listStatus(path):
-        print f.getPath()
-
-    print("hello")
-
-    data_paths = [data_path + f for f in listdir(data_path)]
+    # data_paths = [data_path + f for f in listdir(data_path)]
     t = sc.parallelize(data_paths, node_num)\
         .map(parse_hdfs_csv)\
         .flatMap(lambda data_seq: get_feature_label_list(data_seq))\
