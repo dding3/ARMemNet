@@ -59,8 +59,6 @@ if __name__ == "__main__":
         # get CELL_NUM from filename
         cell_num = file.split("/")[-1].split('.')[0]
 
-        print("file")
-        print(file)
         df = pd.read_csv(file, header=0)
 
         df['CELL_NUM'] = int(cell_num)
@@ -97,20 +95,23 @@ if __name__ == "__main__":
         with fs.open(file, 'rb') as f:
             df = pd.read_csv(f, header = 0)
 
-            df['CELL_NUM'] = int(cell_num)
-            df = df.rename(columns={'evt_dtm': 'EVT_DTM', 'rsrp': 'RSRP', 'rsrq': 'RSRQ',
-                                            'dl_prb_usage_rate': 'DL_PRB_USAGE_RATE', 'sinr': 'SINR',
-                                            'ue_tx_power': 'UE_TX_POWER', 'phr': 'PHR',
-                                            'ue_conn_tot_cnt': 'UE_CONN_TOT_CNT', 'cqi': 'CQI'})
+        df['CELL_NUM'] = int(cell_num)
+        df = df.rename(columns={'evt_dtm': 'EVT_DTM', 'rsrp': 'RSRP', 'rsrq': 'RSRQ',
+                                        'dl_prb_usage_rate': 'DL_PRB_USAGE_RATE', 'sinr': 'SINR',
+                                        'ue_tx_power': 'UE_TX_POWER', 'phr': 'PHR',
+                                        'ue_conn_tot_cnt': 'UE_CONN_TOT_CNT', 'cqi': 'CQI'})
 
-            # Normalzing
-            df[feat_cols] = scaler.transform(df[feat_cols])
+        # Normalzing
+        df[feat_cols] = scaler.transform(df[feat_cols])
 
-            # Generate X, Y, M
-            x, y, m = generate_xym(df[feat_cols].to_numpy(), n_feat, x_size,
-                                   y_size, m_size, m_days, m_gaps)
+        # Generate X, Y, M
+        x, y, m = generate_xym(df[feat_cols].to_numpy(), n_feat, x_size,
+                               y_size, m_size, m_days, m_gaps)
 
-        return [x, y, m]
+        X = x.reshape(-1, 10, 8)
+        Y = y.reshape(-1, 8)
+        M = m.reshape(-1, 77, 8)
+        return X, Y, M
 
     node_num, core_num = get_node_and_core_number()
 
