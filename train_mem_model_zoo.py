@@ -24,7 +24,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 5:
         core_num = int(sys.argv[5])
     else:
-        core_num = 1
+        core_num = 4
     if len(sys.argv) > 6:
         thread_num = int(sys.argv[6])
     else:
@@ -125,26 +125,29 @@ if __name__ == "__main__":
     #from os import listdir
     #data_paths = [data_path + f for f in listdir(data_path)]
 
-    cmd = "hdfs dfs -ls " + data_path
-    import os
-    out = os.popen(cmd)
-    data_paths = [fileline.split(' ')[-1][:-1] for fileline in out.readlines()[1:]]
+    #cmd = "hdfs dfs -ls " + data_path
+    #import os
+    #out = os.popen(cmd)
+    #data_paths = [fileline.split(' ')[-1][:-1] for fileline in out.readlines()[1:]]
 
+    import pandas as pd
+    import pyarrow as pa
+    fs = pa.hdfs.connect()
+    
+    data_paths=fs.ls(data_path)
     t = sc.parallelize(data_paths, node_num)\
         .map(parse_hdfs_csv)\
         .flatMap(lambda data_seq: get_feature_label_list(data_seq))\
         .coalesce(node_num).cache()
 
-    #train_rdd, val_rdd, test_rdd = t.randomSplit([config.num_cells_train, config.num_cells_valid, config.num_cells_test])
+    train_rdd, val_rdd, test_rdd = t.randomSplit([config.num_cells_train, config.num_cells_valid, config.num_cells_test])
 
     #t = sc.parallelize(data_paths, node_num)\
     #    .map(parse_local_csv)\
     #    .flatMap(lambda data_seq: get_feature_label_list(data_seq))\
     #    .coalesce(node_num).cache()    
-    train_rdd, val_rdd, test_rdd = t.randomSplit(
-         [2, 1, 1])
-    print("hello")
-    print(train_rdd.take(1)[0][0][0].shape)
+    #train_rdd, val_rdd, test_rdd = t.randomSplit(
+    #     [2, 1, 1])
     dataset = TFDataset.from_rdd(train_rdd,
                                  features=[(tf.float32, [10, 8]), (tf.float32, [77, 8])],
                                  labels=(tf.float32, [8]),
