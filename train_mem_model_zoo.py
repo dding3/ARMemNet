@@ -7,6 +7,7 @@ from AR_mem.model import Model
 from time import time
 import tensorflow as tf
 from zoo.common import set_core_number
+from zoo.common import get_remote_file_list
 
 from bigdl.util.common import get_node_and_core_number
 
@@ -130,14 +131,53 @@ if __name__ == "__main__":
     #out = os.popen(cmd)
     #data_paths = [fileline.split(' ')[-1][:-1] for fileline in out.readlines()[1:]]
 
-    import pandas as pd
-    import pyarrow as pa
-    fs = pa.hdfs.connect()
-    
-    data_paths=fs.ls(data_path)
-    t = sc.parallelize(data_paths, node_num)\
-        .map(parse_hdfs_csv)\
-        .flatMap(lambda data_seq: get_feature_label_list(data_seq))\
+    # import pandas as pd
+    # import pyarrow as pa
+    # fs = pa.hdfs.connect()
+    #
+    # data_paths=fs.ls(data_path)
+    # t = sc.parallelize(data_paths, node_num)\
+    #     .map(parse_hdfs_csv)\
+    #     .flatMap(lambda data_seq: get_feature_label_list(data_seq))\
+    #     .coalesce(node_num).cache()
+
+    def parse_spark_csv(file):
+        import pandas as pd
+        import pyarrow as pa
+        fs = pa.hdfs.connect()
+
+        # load scaler
+        with open(scaler_dump_file, 'rb') as scaler_dump:
+            scaler = pickle.load(scaler_dump)
+
+        # get CELL_NUM from filename
+        cell_num = file.split('/')[-1].split('.')[0]
+
+        with fs.open(file, 'rb') as f:
+            df = pd.read_csv(f, header = 0)
+
+        df['CELL_NUM'] = int(cell_num)
+        df = df.rename(columns={'evt_dtm': 'EVT_DTM', 'rsrp': 'RSRP', 'rsrq': 'RSRQ',
+                                        'dl_prb_usage_rate': 'DL_PRB_USAGE_RATE', 'sinr': 'SINR',
+                                        'ue_tx_power': 'UE_TX_POWER', 'phr': 'PHR',
+                                        'ue_conn_tot_cnt': 'UE_CONN_TOT_CNT', 'cqi': 'CQI'})
+
+        # Normalzing
+        df[feat_cols] = scaler.transform(df[feat_cols])
+
+        # Generate X, Y, M
+        x, y, m = generate_xym(df[feat_cols].to_numpy(), n_feat, x_size,
+                               y_size, m_size, m_days, m_gaps)
+
+        X = x.reshape(-1, 10, 8)
+        Y = y.reshape(-1, 8)
+        M = m.reshape(-1, 77, 8)
+        return X, Y, M
+
+    data_paths = get_remote_file_list(data_path)
+    t = sc.parallelize(data_paths, node_num) \
+        .map(parse_hdfs_csv) \
+        .flatMap(lambda data_seq: get_feature_label_list(data_seq)) \
         .coalesce(node_num).cache()
 
     train_rdd, val_rdd, test_rdd = t.randomSplit([config.num_cells_train, config.num_cells_valid, config.num_cells_test])
