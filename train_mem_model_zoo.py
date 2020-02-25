@@ -82,6 +82,8 @@ if __name__ == "__main__":
 
     # load from hdfs
     def parse_hdfs_csv(file):
+        import os
+        os.environ['ARROW_LIBHDFS_DIR']='/home/nvkvs/hadoop/lib/native'
         import pandas as pd
         import pyarrow as pa
         fs = pa.hdfs.connect()
@@ -175,8 +177,49 @@ if __name__ == "__main__":
         return X, Y, M
 
     data_paths = get_remote_file_list(data_path)
+    # t = sc.parallelize(data_paths, node_num) \
+    #     .map(parse_hdfs_csv) \
+    #     .flatMap(lambda data_seq: get_feature_label_list(data_seq)) \
+    #     .coalesce(node_num).cache()
+
+    def parse_hdfs_csv_partition(iterator):
+        import os
+        os.environ['ARROW_LIBHDFS_DIR'] = '/home/nvkvs/hadoop/lib/native'
+        import pandas as pd
+        import pyarrow as pa
+        fs = pa.hdfs.connect()
+
+        # load scaler
+        with open(scaler_dump_file, 'rb') as scaler_dump:
+            scaler = pickle.load(scaler_dump)
+
+        for x in iterator:
+            # get CELL_NUM from filename
+            cell_num = x.split('/')[-1].split('.')[0]
+
+            with fs.open(x, 'rb') as f:
+                df = pd.read_csv(f, header=0)
+
+            df['CELL_NUM'] = int(cell_num)
+            df = df.rename(columns={'evt_dtm': 'EVT_DTM', 'rsrp': 'RSRP', 'rsrq': 'RSRQ',
+                                    'dl_prb_usage_rate': 'DL_PRB_USAGE_RATE', 'sinr': 'SINR',
+                                    'ue_tx_power': 'UE_TX_POWER', 'phr': 'PHR',
+                                    'ue_conn_tot_cnt': 'UE_CONN_TOT_CNT', 'cqi': 'CQI'})
+
+            # Normalzing
+            df[feat_cols] = scaler.transform(df[feat_cols])
+
+            # Generate X, Y, M
+            x, y, m = generate_xym(df[feat_cols].to_numpy(), n_feat, x_size,
+                                   y_size, m_size, m_days, m_gaps)
+
+            X = x.reshape(-1, 10, 8)
+            Y = y.reshape(-1, 8)
+            M = m.reshape(-1, 77, 8)
+            yield X, Y, M
+
     t = sc.parallelize(data_paths, node_num) \
-        .map(parse_hdfs_csv) \
+        .mapPartitions(parse_hdfs_csv_partition) \
         .flatMap(lambda data_seq: get_feature_label_list(data_seq)) \
         .coalesce(node_num).cache()
 
