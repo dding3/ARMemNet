@@ -184,6 +184,7 @@ if __name__ == "__main__":
 
     def parse_hdfs_csv_partition(iterator):
         import os
+        import numpy
         os.environ['ARROW_LIBHDFS_DIR'] = '/home/nvkvs/hadoop/lib/native'
         import pandas as pd
         import pyarrow as pa
@@ -216,15 +217,22 @@ if __name__ == "__main__":
             X = x.reshape(-1, 10, 8)
             Y = y.reshape(-1, 8)
             M = m.reshape(-1, 77, 8)
+            
+            #X = numpy.random.random((2006, 10, 8))
+            #Y = numpy.random.random((2006, 8))
+            #M = numpy.random.random((2006, 77, 8))            
             yield X, Y, M
 
-    t = sc.parallelize(data_paths, node_num) \
+    t = sc.parallelize(data_paths, node_num*100) \
         .mapPartitions(parse_hdfs_csv_partition) \
         .flatMap(lambda data_seq: get_feature_label_list(data_seq)) \
-        .coalesce(node_num).cache()
+        .cache()
 
     train_rdd, val_rdd, test_rdd = t.randomSplit([config.num_cells_train, config.num_cells_valid, config.num_cells_test])
 
+    train_rdd.count()
+
+    print("finishe preprocessing!")
     #t = sc.parallelize(data_paths, node_num)\
     #    .map(parse_local_csv)\
     #    .flatMap(lambda data_seq: get_feature_label_list(data_seq))\
