@@ -176,7 +176,7 @@ if __name__ == "__main__":
         M = m.reshape(-1, 77, 8)
         return X, Y, M
 
-    data_paths = get_remote_file_list(data_path)
+    data_paths = get_remote_file_list(data_path)[:10000]
     # t = sc.parallelize(data_paths, node_num) \
     #     .map(parse_hdfs_csv) \
     #     .flatMap(lambda data_seq: get_feature_label_list(data_seq)) \
@@ -223,7 +223,7 @@ if __name__ == "__main__":
             #M = numpy.random.random((2006, 77, 8))            
             yield X, Y, M
 
-    t = sc.parallelize(data_paths, node_num*100) \
+    t = sc.parallelize(data_paths, node_num*20) \
         .mapPartitions(parse_hdfs_csv_partition) \
         .flatMap(lambda data_seq: get_feature_label_list(data_seq)) \
         .cache()
