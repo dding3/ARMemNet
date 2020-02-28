@@ -7,12 +7,11 @@ from AR_mem.model import Model
 from time import time
 import tensorflow as tf
 from zoo.common import set_core_number
-from zoo.common import get_remote_file_list
+from zoo.util.spark import processPDFrame
 
 from bigdl.util.common import get_node_and_core_number
 
 import pickle
-import pandas as pd
 
 if __name__ == "__main__":
 
@@ -47,62 +46,15 @@ if __name__ == "__main__":
     # init or get SparkContext
     sc = init_nncontext()
     
-    # tuning
-    set_core_number(core_num)
-
-    # load from local
-    def parse_local_csv(file):
-
-        # load scaler
-        with open(config.scaler_dump, 'rb') as scaler_dump:
-            scaler = pickle.load(scaler_dump)
-
-        # get CELL_NUM from filename
-        cell_num = file.split("/")[-1].split('.')[0]
-
-        df = pd.read_csv(file, header=0)
-
-        df['CELL_NUM'] = int(cell_num)
-        df = df.rename(columns={'evt_dtm': 'EVT_DTM', 'rsrp': 'RSRP', 'rsrq': 'RSRQ',
-                                        'dl_prb_usage_rate': 'DL_PRB_USAGE_RATE', 'sinr': 'SINR',
-                                        'ue_tx_power': 'UE_TX_POWER', 'phr': 'PHR',
-                                        'ue_conn_tot_cnt': 'UE_CONN_TOT_CNT', 'cqi': 'CQI'})
-
-        # Normalzing
-        df[config.feat_cols] = scaler.transform(df[config.feat_cols])
-
-        # Generate X, Y, M
-        x, y, m = generate_xym(df[config.feat_cols].to_numpy(), config.n_feat, config.x_size,
-                               config.y_size, config.m_size, config.m_days, config.m_gaps)
-        X = x.reshape(-1, 10, 8)
-        Y = y.reshape(-1, 8)
-        M = m.reshape(-1, 77, 8)
-        return X, Y, M
-
-
-    # load from hdfs
-    def parse_hdfs_csv(file):
-        import os
-        os.environ['ARROW_LIBHDFS_DIR']='/home/nvkvs/hadoop/lib/native'
-        import pandas as pd
-        import pyarrow as pa
-        fs = pa.hdfs.connect()
+    def pdFrame(pf):
+        df = pf.rename(columns={'evt_dtm': 'EVT_DTM', 'rsrp': 'RSRP', 'rsrq': 'RSRQ',
+                                'dl_prb_usage_rate': 'DL_PRB_USAGE_RATE', 'sinr': 'SINR',
+                                'ue_tx_power': 'UE_TX_POWER', 'phr': 'PHR',
+                                'ue_conn_tot_cnt': 'UE_CONN_TOT_CNT', 'cqi': 'CQI'})
 
         # load scaler
         with open(scaler_dump_file, 'rb') as scaler_dump:
             scaler = pickle.load(scaler_dump)
-
-        # get CELL_NUM from filename
-        cell_num = file.split('/')[-1].split('.')[0]
-
-        with fs.open(file, 'rb') as f:
-            df = pd.read_csv(f, header = 0)
-
-        df['CELL_NUM'] = int(cell_num)
-        df = df.rename(columns={'evt_dtm': 'EVT_DTM', 'rsrp': 'RSRP', 'rsrq': 'RSRQ',
-                                        'dl_prb_usage_rate': 'DL_PRB_USAGE_RATE', 'sinr': 'SINR',
-                                        'ue_tx_power': 'UE_TX_POWER', 'phr': 'PHR',
-                                        'ue_conn_tot_cnt': 'UE_CONN_TOT_CNT', 'cqi': 'CQI'})
 
         # Normalzing
         df[feat_cols] = scaler.transform(df[feat_cols])
@@ -115,6 +67,9 @@ if __name__ == "__main__":
         Y = y.reshape(-1, 8)
         M = m.reshape(-1, 77, 8)
         return X, Y, M
+
+    # tuning
+    set_core_number(core_num)
 
     node_num, core_num = get_node_and_core_number()
 
@@ -125,44 +80,16 @@ if __name__ == "__main__":
         length = X.shape[0]
         return [([X[i], M[i]], Y[i]) for i in range(length)]
 
-    #from os import listdir
-    #data_paths = [data_path + f for f in listdir(data_path)]
 
-    #cmd = "hdfs dfs -ls " + data_path
-    #import os
-    #out = os.popen(cmd)
-    #data_paths = [fileline.split(' ')[-1][:-1] for fileline in out.readlines()[1:]]
-
-    # import pandas as pd
-    # import pyarrow as pa
-    # fs = pa.hdfs.connect()
-    #
-    # data_paths=fs.ls(data_path)
-    # t = sc.parallelize(data_paths, node_num)\
-    #     .map(parse_hdfs_csv)\
-    #     .flatMap(lambda data_seq: get_feature_label_list(data_seq))\
-    #     .coalesce(node_num).cache()
-
-    def parse_spark_csv(file):
-        import pandas as pd
-        import pyarrow as pa
-        fs = pa.hdfs.connect()
+    def pdFrame(pf):
+        df = pf.rename(columns={'evt_dtm': 'EVT_DTM', 'rsrp': 'RSRP', 'rsrq': 'RSRQ',
+                                'dl_prb_usage_rate': 'DL_PRB_USAGE_RATE', 'sinr': 'SINR',
+                                'ue_tx_power': 'UE_TX_POWER', 'phr': 'PHR',
+                                'ue_conn_tot_cnt': 'UE_CONN_TOT_CNT', 'cqi': 'CQI'})
 
         # load scaler
         with open(scaler_dump_file, 'rb') as scaler_dump:
             scaler = pickle.load(scaler_dump)
-
-        # get CELL_NUM from filename
-        cell_num = file.split('/')[-1].split('.')[0]
-
-        with fs.open(file, 'rb') as f:
-            df = pd.read_csv(f, header = 0)
-
-        df['CELL_NUM'] = int(cell_num)
-        df = df.rename(columns={'evt_dtm': 'EVT_DTM', 'rsrp': 'RSRP', 'rsrq': 'RSRQ',
-                                        'dl_prb_usage_rate': 'DL_PRB_USAGE_RATE', 'sinr': 'SINR',
-                                        'ue_tx_power': 'UE_TX_POWER', 'phr': 'PHR',
-                                        'ue_conn_tot_cnt': 'UE_CONN_TOT_CNT', 'cqi': 'CQI'})
 
         # Normalzing
         df[feat_cols] = scaler.transform(df[feat_cols])
@@ -176,95 +103,18 @@ if __name__ == "__main__":
         M = m.reshape(-1, 77, 8)
         return X, Y, M
 
-    data_paths = get_remote_file_list(data_path)[:10000]
-    # t = sc.parallelize(data_paths, node_num) \
-    #     .map(parse_hdfs_csv) \
-    #     .flatMap(lambda data_seq: get_feature_label_list(data_seq)) \
-    #     .coalesce(node_num).cache()
 
-    def parse_hdfs_csv_partition(iterator):
-        import os
-        import numpy
-        os.environ['ARROW_LIBHDFS_DIR'] = '/home/nvkvs/hadoop/lib/native'
-        import pandas as pd
-        import pyarrow as pa
-        fs = pa.hdfs.connect()
-
-        # load scaler
-        with open(scaler_dump_file, 'rb') as scaler_dump:
-            scaler = pickle.load(scaler_dump)
-
-        for x in iterator:
-            # get CELL_NUM from filename
-            cell_num = x.split('/')[-1].split('.')[0]
-
-            with fs.open(x, 'rb') as f:
-                df = pd.read_csv(f, header=0)
-
-            df['CELL_NUM'] = int(cell_num)
-            df = df.rename(columns={'evt_dtm': 'EVT_DTM', 'rsrp': 'RSRP', 'rsrq': 'RSRQ',
-                                    'dl_prb_usage_rate': 'DL_PRB_USAGE_RATE', 'sinr': 'SINR',
-                                    'ue_tx_power': 'UE_TX_POWER', 'phr': 'PHR',
-                                    'ue_conn_tot_cnt': 'UE_CONN_TOT_CNT', 'cqi': 'CQI'})
-
-            # Normalzing
-            df[feat_cols] = scaler.transform(df[feat_cols])
-
-            # Generate X, Y, M
-            x, y, m = generate_xym(df[feat_cols].to_numpy(), n_feat, x_size,
-                                   y_size, m_size, m_days, m_gaps)
-
-            X = x.reshape(-1, 10, 8)
-            Y = y.reshape(-1, 8)
-            M = m.reshape(-1, 77, 8)
-            
-            #X = numpy.random.random((2006, 10, 8))
-            #Y = numpy.random.random((2006, 8))
-            #M = numpy.random.random((2006, 77, 8))            
-            yield X, Y, M
-
-    t = sc.parallelize(data_paths, node_num*20) \
-        .mapPartitions(parse_hdfs_csv_partition) \
+    t = processPDFrame(sc, data_path, pdFrame) \
         .flatMap(lambda data_seq: get_feature_label_list(data_seq)) \
         .cache()
 
     train_rdd, val_rdd, test_rdd = t.randomSplit([config.num_cells_train, config.num_cells_valid, config.num_cells_test])
 
-    train_rdd.count()
-
-    print("finishe preprocessing!")
-    #t = sc.parallelize(data_paths, node_num)\
-    #    .map(parse_local_csv)\
-    #    .flatMap(lambda data_seq: get_feature_label_list(data_seq))\
-    #    .coalesce(node_num).cache()    
-    #train_rdd, val_rdd, test_rdd = t.randomSplit(
-    #     [2, 1, 1])
     dataset = TFDataset.from_rdd(train_rdd,
                                  features=[(tf.float32, [10, 8]), (tf.float32, [77, 8])],
                                  labels=(tf.float32, [8]),
                                  batch_size=batch_size,
                                  val_rdd=val_rdd)
-
-    # create train data
-    # train_x, dev_x, test_x, train_y, dev_y, test_y, train_m, dev_m, test_m, test_dt = \
-    #     load_agg_selected_data_mem_train(data_path=config.data_path,
-    #                                x_len=config.x_len,
-    #                                y_len=config.y_len,
-    #                                foresight=config.foresight,
-    #                                cell_ids=config.train_cell_ids,
-    #                                dev_ratio=config.dev_ratio,
-    #                                test_len=config.test_len,
-    #                                seed=config.seed)
-
-    # config.batch_size is useless as we force get_datasets_from_dir return the entire data
-    # train_X, train_Y, train_M, valid_X, valid_Y, valid_M, _, _, _ =\
-    #     get_datasets_from_dir(config.data_path, config.batch_size,
-    #                       train_cells=config.num_cells_train,
-    #                       valid_cells=config.num_cells_valid,
-    #                       test_cells=config.num_cells_test)[0]
-    #
-    # dataset = TFDataset.from_ndarrays([train_X, train_M, train_Y], batch_size=batch_size,
-    #                                   val_tensors=[valid_X, valid_M, valid_Y],)
 
     model = Model(config, dataset.tensors[0][0], dataset.tensors[0][1], dataset.tensors[1])
     optimizer = TFOptimizer.from_loss(model.loss, Adam(config.lr),
