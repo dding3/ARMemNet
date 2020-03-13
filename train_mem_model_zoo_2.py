@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     sc = init_nncontext("train mem zoo")
 
-    feature_set = FeatureSet.csv_dataset()
+    feature_set = FeatureSet.csv_dataset(data_path, "/home/ding/proj/skt/ARMemNet")
 
     dataset = TFDataset.from_feature_set(feature_set,
                                           features=[(tf.float32, [10, 8]), (tf.float32, [77, 8])],
