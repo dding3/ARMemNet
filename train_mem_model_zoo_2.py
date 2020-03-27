@@ -1,11 +1,11 @@
 from zoo import init_nncontext
+from zoo import init_spark_on_yarn
 from zoo.tfpark import TFOptimizer, TFDataset
 from zoo.feature.common import FeatureSet
 from bigdl.optim.optimizer import *
 from AR_mem.config import Config
 from AR_mem.model import Model
 import tensorflow as tf
-
 
 if __name__ == "__main__":
 
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     sc = init_nncontext("train mem zoo")
 
-    feature_set = FeatureSet.csv_dataset(data_path, "/home/ding/proj/skt/ARMemNet")
+    feature_set = FeatureSet.csv_dataset(data_path, "./ARMemNet")
 
     dataset = TFDataset.from_feature_set(feature_set,
                                           features=[(tf.float32, [10, 8]), (tf.float32, [77, 8])],

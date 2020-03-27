@@ -1,7 +1,8 @@
 import pickle
 import pandas as pd
-from AR_mem.config import Config
-from data_utils import generate_xym
+import pyarrow
+from ARMemNet.AR_mem.config import Config
+from ARMemNet.data_utils import generate_xym
 
 config = Config()
 
@@ -43,7 +44,12 @@ def get_feature_label_list(data_seq):
 
 def parse_hdfs_csv(file):
     import os
-    os.environ['ARROW_LIBHDFS_DIR']='/home/nvkvs/hadoop/lib/native'
+    os.environ['HADOOP_HOME']='/opt/work/hadoop-2.7.2'
+    os.environ['ARROW_LIBHDFS_DIR']='/opt/work/hadoop-2.7.2/lib/native'
+
+    import sys
+    sys.path.append("/opt/work/hadoop-2.7.2/bin")
+  
     import pandas as pd
     import pyarrow as pa
     fs = pa.hdfs.connect()
